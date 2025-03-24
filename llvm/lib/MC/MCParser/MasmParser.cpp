@@ -44,6 +44,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolCOFF.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -4588,16 +4589,21 @@ bool MasmParser::parseDirectiveExtern() {
     SMLoc TypeLoc = getTok().getLoc();
     if (parseIdentifier(TypeName))
       return Error(TypeLoc, "expected type");
-    if (!TypeName.equals_insensitive("proc")) {
+    if (!TypeName.equals_insensitive("proc") &&
+        !TypeName.equals_insensitive("near") &&
+        !TypeName.equals_insensitive("far")) {
       AsmTypeInfo Type;
       if (lookUpType(TypeName, Type))
         return Error(TypeLoc, "unrecognized type");
       KnownType[Name.lower()] = Type;
     }
 
-    MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
+    MCSymbolCOFF *Sym =
+        cast<MCSymbolCOFF>(getContext().getOrCreateSymbol(Name));
     Sym->setExternal(true);
     getStreamer().emitSymbolAttribute(Sym, MCSA_Extern);
+    if (TypeName.equals_insensitive("far"))
+      Sym->setIsFarProc();
 
     return false;
   };
